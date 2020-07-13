@@ -1,0 +1,102 @@
+from textblob import TextBlob
+import pandas as pd
+import string
+import nltk
+from nltk.corpus import stopwords
+from nltk import re
+import preprocessor as p
+
+# indetifies the url pattern through regular expressions
+def getUrlPatern():
+    return re.compile(
+        r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))'
+        r'[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9]\.[^\s]{2,})')
+
+# hashtag pattern getter
+def getHashtagsPattern():
+    return re.compile(r'#\w*')
+
+# single letter words pattern getter
+def getSingleLetterWordsPattern():
+    return re.compile(r'(?<![\w\-])\w(?![\w\-])')
+
+# blank space pattern getter
+def getBlankSpacesPattern():
+    return re.compile(r'\s{2,}|\t')
+
+# removes urls from the comments
+def removeUrls(self):
+    self = re.sub(pattern=getUrlPatern(), repl='', string=self)
+    return self
+
+# removes hashtags from the comments
+def removeHashtags(self):
+    self = re.sub(pattern=getHashtagsPattern(), repl='', string=self)
+    return self
+
+# removes single letter words from the comments
+def removeSingleLetterWords(self):
+        self = re.sub(pattern=getSingleLetterWordsPattern(), repl='', string=self)
+        return self
+
+# removes blank spaces from the comments
+def removeBlankSpaces(self):
+        self = re.sub(pattern=getBlankSpacesPattern(), repl=' ', string=self)
+        return self
+
+# removes stop words from the comments
+def removeStopwords(self, extraStopwords=None):
+        if extraStopwords is None:
+            extraStopwords = []
+        text = nltk.word_tokenize(self)
+        stopWords = set(stopwords.words('english'))
+
+        newSentence = []
+        for w in text:
+            if w not in stopWords and w not in extraStopwords:
+                newSentence.append(w)
+        self = ' '.join(newSentence)
+        return self
+
+# converts text to lower case
+def lowercase(self):
+        self = self.lower()
+        return self
+  
+# preprocesses the tweet  
+def preProcessTweet(self):
+  self=removeBlankSpaces(self)
+  self=removeStopwords(self)
+  self= lowercase(self)
+  self = removeSingleLetterWords(self)   
+  self = removeHashtags(self)
+  self = removeUrls(self)
+  return self                
+
+# identifies the polarity of tweet
+def preProcessAndCalculatePolarity(user):
+ file_polarity = open('tweet_polarity_' + user +'.txt','w') 
+ polarityValue=''
+ cols=['location','user','comment']
+ data = pd.read_csv("state_user_tweet_" +user + ".txt", names=cols, header=None,engine="python", sep=',' , error_bad_lines=False)
+ 
+ for ind in data.index:
+   #preprocessing tweet
+   comment = p.clean(str(data['comment'][ind])) 
+   comment= preProcessTweet(comment)
+   testimonal = TextBlob(comment)
+   polarityValue=''
+   if testimonal.sentiment.polarity > 0:
+     polarityValue = 'positive' 
+   elif testimonal.sentiment.polarity<0:
+     polarityValue = 'negative' 
+   else:    
+     polarityValue = 'neutral'
+   file_polarity.write(str(data['location'][ind]) + ',' + polarityValue+'\n')
+   
+ file_polarity.close()
+ 
+# ********* main ********
+if __name__ == '__main__':
+     preProcessAndCalculatePolarity('BernieSanders')
+     preProcessAndCalculatePolarity('DonaldTrump')

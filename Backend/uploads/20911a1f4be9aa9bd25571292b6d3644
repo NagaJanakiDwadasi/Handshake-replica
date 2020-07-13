@@ -1,0 +1,94 @@
+from textblob import TextBlob
+import pandas as pd
+import string
+import nltk
+from nltk.corpus import stopwords
+from nltk import re
+import preprocessor as p
+
+def getUrlPatern():
+    return re.compile(
+        r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))'
+        r'[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9]\.[^\s]{2,})')
+
+
+def getHashtagsPattern():
+    return re.compile(r'#\w*')
+
+
+def getSingleLetterWordsPattern():
+    return re.compile(r'(?<![\w\-])\w(?![\w\-])')
+
+
+def getBlankSpacesPattern():
+    return re.compile(r'\s{2,}|\t')
+
+def removeUrls(self):
+    self = re.sub(pattern=getUrlPatern(), repl='', string=self)
+    return self
+
+def removeHashtags(self):
+    self = re.sub(pattern=getHashtagsPattern(), repl='', string=self)
+    return self
+
+def removeSingleLetterWords(self):
+        self = re.sub(pattern=getSingleLetterWordsPattern(), repl='', string=self)
+        return self
+
+def removeBlankSpaces(self):
+        self = re.sub(pattern=getBlankSpacesPattern(), repl=' ', string=self)
+        return self
+
+def removeStopwords(self, extraStopwords=None):
+        if extraStopwords is None:
+            extraStopwords = []
+        text = nltk.word_tokenize(self)
+        stopWords = set(stopwords.words('english'))
+
+        newSentence = []
+        for w in text:
+            if w not in stopWords and w not in extraStopwords:
+                newSentence.append(w)
+        self = ' '.join(newSentence)
+        return self
+
+def lowercase(self):
+        self = self.lower()
+        return self
+        
+def preProcessTweet(self):
+  self=removeBlankSpaces(self)
+  self=removeStopwords(self)
+  self= lowercase(self)
+  self = removeSingleLetterWords(self)   
+  self = removeHashtags(self)
+  self = removeUrls(self)
+  return self                
+
+
+def preProcessAndCalculatePolarity(user):
+ file_polarity = open('tweet_polarity_' + user +'.txt','w') 
+ polarityValue=''
+ cols=['location','user','comment']
+ data = pd.read_csv("state_user_tweet_" +user + ".txt", names=cols, header=None,engine="python", sep=',' , error_bad_lines=False)
+
+ for ind in data.index:
+   #preprocessing tweet
+   comment = p.clean(str(data['comment'][ind])) 
+   comment= preProcessTweet(comment)
+   testimonal = TextBlob(comment)
+   polarityValue=''
+   if testimonal.sentiment.polarity > 0:
+     polarityValue = 'positive' 
+   elif testimonal.sentiment.polarity<0:
+     polarityValue = 'negative' 
+   else:    
+     polarityValue = 'neutral'
+   file_polarity.write(str(data['location'][ind]) + ',' + polarityValue+'\n')
+   
+ file_polarity.close()
+ 
+
+if __name__ == '__main__':
+     preProcessAndCalculatePolarity('BernieSanders')
+     preProcessAndCalculatePolarity('DonaldTrump')
